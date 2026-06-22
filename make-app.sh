@@ -23,11 +23,25 @@ sips -z 512  512  "$ICON_SRC" --out "$ICONSET/icon_512x512.png"    >/dev/null
 iconutil -c icns "$ICONSET" -o "$ICNS"
 
 # ── 2. Compile AppleScript applet ────────────────────────────────────────────
+# Call the venv python directly — no shell script file execution needed,
+# which avoids "Operation not permitted" on Google Drive paths.
+# Poll port 8080 instead of a fixed delay so Chrome only opens when ready.
 osacompile -o "$APP" - <<'APPLESCRIPT'
 on run
-    set launchScript to POSIX path of (path to me) & "../launch.sh"
-    do shell script "bash " & quoted form of launchScript & " > /tmp/tru-organizer.log 2>&1 &"
-    delay 2
+    set projDir to do shell script "dirname " & quoted form of (POSIX path of (path to me))
+    set pyBin   to projDir & "/.venv/bin/python"
+    set appScript to projDir & "/app.py"
+    do shell script quoted form of pyBin & " " & quoted form of appScript & " >> /tmp/tru-organizer.log 2>&1 &"
+
+    -- Poll until port 8080 is open (up to 30 s)
+    repeat 30 times
+        try
+            do shell script "nc -z 127.0.0.1 8080"
+            exit repeat
+        end try
+        delay 1
+    end repeat
+
     open location "http://127.0.0.1:8080"
 end run
 APPLESCRIPT
