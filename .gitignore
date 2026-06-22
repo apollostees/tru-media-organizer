@@ -20,6 +20,9 @@ duplicates-*/
 # Exclude them but keep requirements.txt
 *-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].txt
 
+# macOS launcher (generated binary bundle)
+*.app/
+
 # IDE
 .vscode/
 .idea/
