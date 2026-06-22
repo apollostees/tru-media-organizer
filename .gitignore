@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# App outputs (generated at runtime)
+duplicates-report.json
+duplicates-*/
+# Scan manifests are named after directory paths, e.g. DriveA-2025-11-10.txt
+# Exclude them but keep requirements.txt
+*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].txt
+
+# IDE
+.vscode/
+.idea/
