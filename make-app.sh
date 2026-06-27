@@ -1,9 +1,6 @@
 #!/bin/bash
 # Builds "TRU Media Organizer.app" in the project directory.
-# Run this once after cloning, or any time you want to rebuild the launcher.
-#
-# The venv lives at ~/.tru-media-organizer-venv (outside Google Drive)
-# because Google Drive corrupts symlinks, breaking the venv python binary.
+# Run once after cloning, or any time you want to rebuild the launcher.
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,15 +8,14 @@ APP="$DIR/TRU Media Organizer.app"
 ICON_SRC="$DIR/disc.png"
 ICONSET="/tmp/tru_organizer.iconset"
 ICNS="/tmp/tru_organizer.icns"
-VENV="$HOME/.tru-media-organizer-venv"
 
-# ── 1. Create / refresh venv outside Google Drive ────────────────────────────
-if [ ! -f "$VENV/bin/python" ]; then
-    echo "Creating venv at $VENV …"
-    python3 -m venv "$VENV"
+# ── 1. Create / refresh venv ──────────────────────────────────────────────────
+if [ ! -f "$DIR/.venv/bin/python" ]; then
+    echo "Creating venv …"
+    python3 -m venv "$DIR/.venv"
 fi
 echo "Installing dependencies …"
-"$VENV/bin/pip" install -q -r "$DIR/requirements.txt"
+"$DIR/.venv/bin/pip" install -q -r "$DIR/requirements.txt"
 
 # ── 2. Build icon ─────────────────────────────────────────────────────────────
 mkdir -p "$ICONSET"
@@ -35,15 +31,10 @@ sips -z 512  512  "$ICON_SRC" --out "$ICONSET/icon_512x512.png"    >/dev/null
 iconutil -c icns "$ICONSET" -o "$ICNS"
 
 # ── 3. Compile AppleScript applet ────────────────────────────────────────────
-# The venv python path is baked in at build time (not resolved at runtime)
-# so the applet never touches the Google Drive path for the interpreter.
-# Port polling ensures Chrome only opens once the server is actually ready.
-PYTHON_BIN="$VENV/bin/python"
-
-osacompile -o "$APP" - <<APPLESCRIPT
+osacompile -o "$APP" - <<'APPLESCRIPT'
 on run
     set projDir to do shell script "dirname " & quoted form of (POSIX path of (path to me))
-    set pyBin     to "$PYTHON_BIN"
+    set pyBin     to projDir & "/.venv/bin/python"
     set appScript to projDir & "/app.py"
     do shell script quoted form of pyBin & " " & quoted form of appScript & " >> /tmp/tru-organizer.log 2>&1 &"
 
@@ -63,7 +54,6 @@ APPLESCRIPT
 # ── 4. Patch the bundle (icon fix) ───────────────────────────────────────────
 # osacompile ships Assets.car + CFBundleIconName; macOS renders the stock
 # applet icon from the catalog and ignores applet.icns entirely.
-# Delete the catalog and the key so it falls back to CFBundleIconFile → applet.icns.
 rm -f "$APP/Contents/Resources/Assets.car"
 /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP/Contents/Info.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile applet" "$APP/Contents/Info.plist"
@@ -79,5 +69,4 @@ touch "$APP"
     -f "$APP" 2>/dev/null || true
 
 echo "Built: $APP"
-echo "Venv : $VENV"
-echo "Double-click the app to launch TRU Media Organizer."
+echo "Double-click it to launch TRU Media Organizer."
