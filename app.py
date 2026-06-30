@@ -54,6 +54,11 @@ from tru_organizer import (
 
 @ui.page('/')
 def index():
+    ui.add_css("""
+        .tru-log .q-field__native,
+        .tru-log .q-field__control { background: #0f172a !important; color: #4ade80 !important; }
+        .tru-log .q-field__control::before { border-color: #1e3a5f !important; }
+    """)
 
     # Per-session mutable state (fresh on each browser tab)
     scan_state = {'report_path': ''}
@@ -128,9 +133,9 @@ def index():
                     scan_prog.visible = False
 
                 with ui.card_section():
-                    scan_log = ui.textarea().classes('w-full h-52 font-mono text-xs').props(
+                    scan_log = ui.textarea().classes('w-full h-52 font-mono text-xs tru-log').props(
                         'readonly outlined'
-                    ).style('background:#0f172a; color:#4ade80; border-radius:4px')
+                    ).style('border-radius:4px')
 
             dupe_panel = ui.column().classes('w-full max-w-3xl mx-auto mt-3')
 
@@ -174,9 +179,9 @@ def index():
                 confirm_btn_area = ui.row().classes('px-4 pb-2 gap-3')
 
                 with ui.card_section():
-                    move_log = ui.textarea().classes('w-full h-40 font-mono text-xs').props(
+                    move_log = ui.textarea().classes('w-full h-40 font-mono text-xs tru-log').props(
                         'readonly outlined'
-                    ).style('background:#0f172a; color:#4ade80; border-radius:4px')
+                    ).style('border-radius:4px')
 
         # ── ③ ORGANIZE ────────────────────────────────────────────────────────
         with ui.tab_panel(t3).classes('p-6'):
@@ -211,9 +216,9 @@ def index():
                     org_prog.visible = False
 
                 with ui.card_section():
-                    org_log = ui.textarea().classes('w-full h-52 font-mono text-xs').props(
+                    org_log = ui.textarea().classes('w-full h-52 font-mono text-xs tru-log').props(
                         'readonly outlined'
-                    ).style('background:#0f172a; color:#4ade80; border-radius:4px')
+                    ).style('border-radius:4px')
 
     # ── SCAN handler ──────────────────────────────────────────────────────────
     async def do_scan():
