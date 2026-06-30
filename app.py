@@ -133,9 +133,9 @@ def index():
                     scan_prog.visible = False
 
                 with ui.card_section():
-                    scan_log = ui.textarea().classes('w-full h-52 font-mono text-xs tru-log').props(
+                    scan_log = ui.textarea().classes('font-mono text-xs tru-log').props(
                         'readonly outlined'
-                    ).style('border-radius:4px')
+                    ).style('width:650px; height:150px; border-radius:4px')
 
             dupe_panel = ui.column().classes('w-full max-w-3xl mx-auto mt-3')
 
@@ -179,9 +179,9 @@ def index():
                 confirm_btn_area = ui.row().classes('px-4 pb-2 gap-3')
 
                 with ui.card_section():
-                    move_log = ui.textarea().classes('w-full h-40 font-mono text-xs tru-log').props(
+                    move_log = ui.textarea().classes('font-mono text-xs tru-log').props(
                         'readonly outlined'
-                    ).style('border-radius:4px')
+                    ).style('width:650px; height:150px; border-radius:4px')
 
         # ── ③ ORGANIZE ────────────────────────────────────────────────────────
         with ui.tab_panel(t3).classes('p-6'):
@@ -216,9 +216,9 @@ def index():
                     org_prog.visible = False
 
                 with ui.card_section():
-                    org_log = ui.textarea().classes('w-full h-52 font-mono text-xs tru-log').props(
+                    org_log = ui.textarea().classes('font-mono text-xs tru-log').props(
                         'readonly outlined'
-                    ).style('border-radius:4px')
+                    ).style('width:650px; height:150px; border-radius:4px')
 
     # ── SCAN handler ──────────────────────────────────────────────────────────
     async def do_scan():
