@@ -56,8 +56,8 @@ from tru_organizer import (
 def index():
     ui.add_css("""
         .tru-log .q-field__native,
-        .tru-log .q-field__control { background: #0f172a !important; color: #4ade80 !important; }
-        .tru-log .q-field__control::before { border-color: #1e3a5f !important; }
+        .tru-log .q-field__control { background: #ffffff !important; color: #111111 !important; }
+        .tru-log .q-field__control::before { border-color: #d1d5db !important; }
     """)
 
     # Per-session mutable state (fresh on each browser tab)
