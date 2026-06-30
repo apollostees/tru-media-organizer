@@ -228,7 +228,6 @@ def index():
         out_dir.mkdir(parents=True, exist_ok=True)
 
         scan_btn.disable()
-        scan_log.clear()
         dupe_panel.clear()
         scan_prog.visible = True
         scan_prog.set_value(0)
@@ -343,7 +342,6 @@ def index():
     async def do_find():
         move_list_area.clear()
         confirm_btn_area.clear()
-        move_log.clear()
         move_state['to_move'] = []
         move_state['dest_dir'] = None
 
@@ -466,7 +464,6 @@ def index():
         video_root.mkdir(parents=True, exist_ok=True)
 
         org_btn.disable()
-        org_log.clear()
         org_prog.visible = True
         org_prog.set_value(0)
         org_prog_label.set_text('')

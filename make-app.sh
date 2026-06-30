@@ -31,11 +31,10 @@ sips -z 512  512  "$ICON_SRC" --out "$ICONSET/icon_512x512.png"    >/dev/null
 iconutil -c icns "$ICONSET" -o "$ICNS"
 
 # ── 3. Compile AppleScript applet ────────────────────────────────────────────
-osacompile -o "$APP" - <<'APPLESCRIPT'
+osacompile -o "$APP" - <<APPLESCRIPT
 on run
-    set projDir to do shell script "dirname " & quoted form of (POSIX path of (path to me))
-    set pyBin     to projDir & "/.venv/bin/python"
-    set appScript to projDir & "/app.py"
+    set pyBin     to "$DIR/.venv/bin/python"
+    set appScript to "$DIR/app.py"
     do shell script quoted form of pyBin & " " & quoted form of appScript & " >> /tmp/tru-organizer.log 2>&1 &"
 
     -- Poll until port 8080 is open (up to 30 s)
