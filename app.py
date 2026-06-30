@@ -17,6 +17,11 @@ from pathlib import Path
 from nicegui import ui
 
 
+def _log_push(ta: ui.textarea, text: str) -> None:
+    """Append a line to a readonly textarea used as a log."""
+    ta.value = (ta.value + '\n' + str(text)) if ta.value else str(text)
+
+
 def _free_port(port: int = 8080) -> None:
     """Kill any process already bound to `port` so we can reclaim it."""
     try:
@@ -123,9 +128,9 @@ def index():
                     scan_prog.visible = False
 
                 with ui.card_section():
-                    scan_log = ui.log(max_lines=2000).classes('w-full h-52 font-mono text-xs').style(
-                        'background:#0f172a; color:#4ade80; border-radius:4px'
-                    )
+                    scan_log = ui.textarea().classes('w-full h-52 font-mono text-xs').props(
+                        'readonly outlined'
+                    ).style('background:#0f172a; color:#4ade80; border-radius:4px')
 
             dupe_panel = ui.column().classes('w-full max-w-3xl mx-auto mt-3')
 
@@ -169,9 +174,9 @@ def index():
                 confirm_btn_area = ui.row().classes('px-4 pb-2 gap-3')
 
                 with ui.card_section():
-                    move_log = ui.log(max_lines=500).classes('w-full h-40 font-mono text-xs').style(
-                        'background:#0f172a; color:#4ade80; border-radius:4px'
-                    )
+                    move_log = ui.textarea().classes('w-full h-40 font-mono text-xs').props(
+                        'readonly outlined'
+                    ).style('background:#0f172a; color:#4ade80; border-radius:4px')
 
         # ── ③ ORGANIZE ────────────────────────────────────────────────────────
         with ui.tab_panel(t3).classes('p-6'):
@@ -206,9 +211,9 @@ def index():
                     org_prog.visible = False
 
                 with ui.card_section():
-                    org_log = ui.log(max_lines=2000).classes('w-full h-52 font-mono text-xs').style(
-                        'background:#0f172a; color:#4ade80; border-radius:4px'
-                    )
+                    org_log = ui.textarea().classes('w-full h-52 font-mono text-xs').props(
+                        'readonly outlined'
+                    ).style('background:#0f172a; color:#4ade80; border-radius:4px')
 
     # ── SCAN handler ──────────────────────────────────────────────────────────
     async def do_scan():
@@ -233,7 +238,7 @@ def index():
         scan_prog.set_value(0)
         scan_prog_label.set_text('')
 
-        scan_log.push(f"Output: {out_dir}\n")
+        _log_push(scan_log, f"Output: {out_dir}\n")
 
         # Scan directories + write manifests (fast, sync)
         all_files: list[tuple[Path, Path]] = []
@@ -247,15 +252,15 @@ def index():
                 mf.write(f"{d}\n")
                 for f in sorted(files, key=lambda p: p.name.lower()):
                     mf.write(f"{f.name}\n")
-            scan_log.push(f"[{stem}]  {len(files)} file(s)  →  {manifest_path.name}")
+            _log_push(scan_log, f"[{stem}]  {len(files)} file(s)  →  {manifest_path.name}")
             for f in files:
                 all_files.append((f, d))
 
         total = len(all_files)
-        scan_log.push(f"\nHashing {total} file(s)…")
+        _log_push(scan_log, f"\nHashing {total} file(s)…")
 
         if total == 0:
-            scan_log.push("No media files found.")
+            _log_push(scan_log, "No media files found.")
             scan_btn.enable()
             scan_prog.visible = False
             return
@@ -286,7 +291,7 @@ def index():
                 scan_prog.set_value(i / total)
                 scan_prog_label.set_text(f"{i} / {total}")
             elif msg[0] == 'err':
-                scan_log.push(f"  ⚠  {msg[1]}: {msg[2]}")
+                _log_push(scan_log, f"  ⚠  {msg[1]}: {msg[2]}")
 
         scan_prog.set_value(1.0)
         scan_prog_label.set_text(f"{total} / {total}  ✓")
@@ -294,8 +299,8 @@ def index():
         dupes     = {h: ps for h, ps in hash_map.items() if len(ps) > 1}
         redundant = sum(len(v) - 1 for v in dupes.values())
 
-        scan_log.push('')
-        scan_log.push(
+        _log_push(scan_log, '')
+        _log_push(scan_log,
             f"{len(dupes)} duplicate group(s)  ·  {redundant} redundant file(s)"
             if dupes else "No duplicates found."
         )
@@ -309,7 +314,7 @@ def index():
         rpath = out_dir / REPORT_FILE
         with open(rpath, 'w') as rf:
             json.dump(report, rf, indent=2)
-        scan_log.push(f"Report: {rpath}")
+        _log_push(scan_log, f"Report: {rpath}")
 
         scan_state['report_path'] = str(rpath)
 
@@ -433,12 +438,12 @@ def index():
             msg = await q.get()
             if msg[0] == 'done':
                 _, count = msg
-                move_log.push(f"\nDone — {count} file(s) moved to {dest_dir}")
+                _log_push(move_log, f"\nDone — {count} file(s) moved to {dest_dir}")
                 ui.notify(f'{count} file(s) moved to {dest_dir.name}/', type='positive')
                 break
             elif msg[0] == 'ok':
                 _, n, name = msg
-                move_log.push(f"  {n:>4}  {name}  →  {dest_dir.name}/")
+                _log_push(move_log, f"  {n:>4}  {name}  →  {dest_dir.name}/")
 
     find_btn.on_click(do_find)
 
@@ -468,21 +473,21 @@ def index():
         org_prog.set_value(0)
         org_prog_label.set_text('')
 
-        org_log.push(f"Source : {src}")
-        org_log.push(f"PHOTO/ → {photo_root}")
-        org_log.push(f"VIDEO/ → {video_root}\n")
+        _log_push(org_log, f"Source : {src}")
+        _log_push(org_log, f"PHOTO/ → {photo_root}")
+        _log_push(org_log, f"VIDEO/ → {video_root}\n")
 
         files = scan_media(src, skip_prefixes=('duplicates-', 'PHOTO', 'VIDEO'))
         files = [f for f in files if photo_root not in f.parents and video_root not in f.parents]
         total = len(files)
 
         if total == 0:
-            org_log.push('No media files found.')
+            _log_push(org_log, 'No media files found.')
             org_btn.enable()
             org_prog.visible = False
             return
 
-        org_log.push(f"{total} file(s) to organize…\n")
+        _log_push(org_log, f"{total} file(s) to organize…\n")
 
         q: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
@@ -514,8 +519,8 @@ def index():
             msg = await q.get()
             if msg[0] == 'done':
                 _, photos, videos, errors = msg
-                org_log.push('')
-                org_log.push(f"Done.  Photos: {photos}  ·  Videos: {videos}  ·  Errors: {errors}")
+                _log_push(org_log, '')
+                _log_push(org_log, f"Done.  Photos: {photos}  ·  Videos: {videos}  ·  Errors: {errors}")
                 org_prog.set_value(1.0)
                 org_prog_label.set_text(f"{total} / {total}  ✓")
                 ui.notify(f'Organized {photos + videos} file(s).', type='positive')
@@ -524,9 +529,9 @@ def index():
                 _, i, name, date_str = msg
                 org_prog.set_value(i / total)
                 org_prog_label.set_text(f"{i} / {total}")
-                org_log.push(f"{date_str}  {name}")
+                _log_push(org_log, f"{date_str}  {name}")
             elif msg[0] == 'err':
-                org_log.push(f"  ⚠  {msg[1]}: {msg[2]}")
+                _log_push(org_log, f"  ⚠  {msg[1]}: {msg[2]}")
 
         org_btn.enable()
 
@@ -545,6 +550,6 @@ if __name__ == '__main__':
         favicon=str(Path(__file__).parent / 'disc.png'),
         dark=False,
         reload=False,
-        show=True,
+        show=False,
         reconnect_timeout=300,
     )
