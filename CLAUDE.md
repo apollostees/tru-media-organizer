@@ -41,6 +41,20 @@ Built with [NiceGUI](https://nicegui.io/). Runs at `http://127.0.0.1:8080`. Thre
 
 All long-running work (hashing, moving, organizing) runs in a `threading.Thread` and posts results back to the asyncio event loop via a `Queue`.
 
+## NiceGUI 3.x Notes (important)
+
+The venv runs NiceGUI 3.x (installed when project moved to `~/code/`). Several things changed from 2.x:
+
+- **`ui.log.push()` is broken** — silently does nothing in NiceGUI 3.x. All three log areas use `ui.textarea` with a `_log_push(ta, text)` helper instead. Do not switch back to `ui.log`.
+- **`ui.textarea` CSS** — `.style('color:...')` only targets the outer Quasar wrapper div, not the actual text input. Use `ui.add_css()` targeting `.q-field__native` and `.q-field__control`. The CSS hook class is `tru-log`.
+- **`show=False` in `ui.run()`** — the AppleScript launcher opens the browser itself after polling port 8080. `show=True` opens a second window. Keep it `False`.
+
+## .app Launcher Notes
+
+- `make-app.sh` **must be re-run** any time the project moves to a new directory. It bakes the Python interpreter path and `app.py` path into the compiled AppleScript at build time. Dynamic path detection (`path to me`) proved unreliable — macOS resolved it to the old Google Drive location or `/Applications`.
+- The launcher logs to `/tmp/tru-organizer.log` — check there first if the `.app` isn't working.
+- **macOS TCC (privacy)** — the `.app` bundle cannot read Desktop, Documents, or Downloads without explicit user permission. Grant access in **System Settings → Privacy & Security → Files & Folders**. The terminal already has this permission. Real-world use (scanning `/Volumes/...` external drives) is unaffected.
+
 ## Current State (June 2026)
 
 ### Working
@@ -51,6 +65,7 @@ All long-running work (hashing, moving, organizing) runs in a `threading.Thread`
 - Collision-safe file naming (`safe_name`) when dest already contains a file of the same name
 - Unique manifest names built from directory path segments to avoid collisions across similarly-named folders
 - Port reclamation on startup (`_free_port`) so re-launching doesn't fail
+- `.app` launcher with baked paths (rebuild with `bash make-app.sh` after any project move)
 
 ### Known limitations / future work
 - SHA-256 hashes only the **first 64 KB** — files with identical headers but different content would appear as duplicates (rare in practice for photos/videos, but worth noting)
@@ -59,6 +74,7 @@ All long-running work (hashing, moving, organizing) runs in a `threading.Thread`
 - `ffprobe` must be installed separately (part of FFmpeg); the app silently falls back to mtime if it's missing
 - No Windows/Linux support for the drive chip picker (macOS `/Volumes` only)
 - No test suite yet
+- `.app` cannot access Desktop/Documents/Downloads without TCC permission grant
 
 ## Development Setup
 
