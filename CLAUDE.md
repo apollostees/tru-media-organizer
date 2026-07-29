@@ -12,6 +12,7 @@ The workflow is intentionally three-step so humans stay in control before anythi
 |------|------|
 | `tru_organizer.py` | CLI backend — all business logic (scan, move, organize) |
 | `app.py` | NiceGUI web frontend — wraps the same logic in a browser UI at `http://localhost:8080` |
+| `launch.command` | **Recommended launcher** — plain bash script, runs under Terminal.app |
 | `requirements.txt` | Runtime deps: `Pillow` (EXIF), `nicegui` (web UI) |
 | `disc.png` | App favicon / launcher icon |
 
@@ -55,6 +56,12 @@ The venv runs NiceGUI 3.x (installed when project moved to `~/code/`). Several t
 - The launcher logs to `/tmp/tru-organizer.log` — check there first if the `.app` isn't working.
 - **macOS TCC (privacy)** — the `.app` bundle cannot read Desktop, Documents, or Downloads without explicit user permission. Grant access in **System Settings → Privacy & Security → Files & Folders**. The terminal already has this permission. Real-world use (scanning `/Volumes/...` external drives) is unaffected.
 
+## .app Launcher — Lesson Learned (July 2026)
+
+The `.app` launcher approach fundamentally restricts what a Python app can do. macOS sandboxing strips away filesystem access that the terminal takes for granted — including reading into package-format directories like `.fcpbundle` on external drives, even with Full Disk Access granted. Every `.app` "fix" introduced a new breakage. **The canonical way to run this app is `launch.command` (double-click in Finder) or `python3 app.py` from the terminal — both run under Terminal.app's TCC identity.** The `.app` and `make-app.sh` are kept for reference but should not be trusted or developed further.
+
+`launch.command` frees port 8080 if a previous instance is still running, starts `app.py`, polls until NiceGUI is ready, then opens the browser — the same job the `.app`'s AppleScript wrapper did, minus the TCC problem, since it's a plain script that Finder runs via Terminal.app rather than a separate compiled app bundle. `launch.sh` (older, no port-free/browser-open) is superseded by this but kept for reference.
+
 ## Current State (June 2026)
 
 ### Working
@@ -65,7 +72,8 @@ The venv runs NiceGUI 3.x (installed when project moved to `~/code/`). Several t
 - Collision-safe file naming (`safe_name`) when dest already contains a file of the same name
 - Unique manifest names built from directory path segments to avoid collisions across similarly-named folders
 - Port reclamation on startup (`_free_port`) so re-launching doesn't fail
-- `.app` launcher with baked paths (rebuild with `bash make-app.sh` after any project move)
+- `launch.command` — recommended launcher, runs under Terminal.app's TCC identity
+- `.app` launcher with baked paths (rebuild with `bash make-app.sh` after any project move) — kept for reference only, not recommended (see "Lesson Learned")
 
 ### Known limitations / future work
 - SHA-256 hashes only the **first 64 KB** — files with identical headers but different content would appear as duplicates (rare in practice for photos/videos, but worth noting)
@@ -91,7 +99,9 @@ python tru_organizer.py scan /Volumes/DriveA /Volumes/DriveB
 python tru_organizer.py move --from /Volumes/DriveB
 python tru_organizer.py organize /Volumes/DriveA
 
-# Web UI
+# Web UI — use launch.command (double-click in Finder, or run directly), not the .app
+./launch.command
+# or, equivalently:
 python app.py   # opens http://localhost:8080 automatically
 ```
 
