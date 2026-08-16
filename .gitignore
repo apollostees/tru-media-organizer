@@ -23,6 +23,9 @@ duplicates-*/
 # macOS launcher (generated binary bundle)
 *.app/
 
+# Logs
+*.log
+
 # IDE
 .vscode/
 .idea/

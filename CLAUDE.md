@@ -12,9 +12,13 @@ The workflow is intentionally three-step so humans stay in control before anythi
 |------|------|
 | `tru_organizer.py` | CLI backend — all business logic (scan, move, organize) |
 | `app.py` | NiceGUI web frontend — wraps the same logic in a browser UI at `http://localhost:8080` |
-| `launch.command` | **Recommended launcher** — plain bash script, runs under Terminal.app |
-| `requirements.txt` | Runtime deps: `Pillow` (EXIF), `nicegui` (web UI) |
+| `app_qt.py` | Native PySide6 desktop frontend — three tabs mirroring the same Scan/Move/Organize steps |
+| `TMO.command` | **Recommended launcher for the web UI** — plain bash script, runs under Terminal.app |
+| `TMO-Qt.command` | Launcher for the native UI — plain bash script, no port/browser bookkeeping needed |
+| `requirements.txt` | Runtime deps: `Pillow` (EXIF), `nicegui` (web UI), `PySide6` (native UI) |
 | `disc.png` | App favicon / launcher icon |
+
+Both UIs import and call `tru_organizer.py`'s functions **in-process** — neither shells out to it as a subprocess (unlike the pattern used in AAX-CONVERT/AB-CLEANER, where the CLI is a separate script invoked via `subprocess`). They exist side by side; see "Web UI" and "Native UI" below. **Per the project owner: once the PySide6 UI is fully proven out, the NiceGUI UI will be removed** — until then, keep both working.
 
 ### Core logic (`tru_organizer.py`)
 
@@ -42,6 +46,20 @@ Built with [NiceGUI](https://nicegui.io/). Runs at `http://127.0.0.1:8080`. Thre
 
 All long-running work (hashing, moving, organizing) runs in a `threading.Thread` and posts results back to the asyncio event loop via a `Queue`.
 
+## Native UI (`app_qt.py`)
+
+Built with PySide6. Opens as a real window — no server, no port. `QTabWidget` with the same three tabs as `app.py` (`ScanTab`, `MoveTab`, `OrganizeTab`), each backed by its own `QThread` worker (`ScanWorker`, `MoveWorker`, `OrganizeWorker`) that imports and calls `tru_organizer.py`'s functions directly — same in-process model as `app.py`, just Qt signals (`log_line`, `progress`, `finished_*`, `failed`) instead of an asyncio `Queue`.
+
+- No heartbeat/watchdog subsystem — a native window has an unambiguous close event (`closeEvent`), which terminates any in-flight worker thread on all three tabs and exits.
+- Report handoff between Scan and Move tabs (`app.py`'s `scan_state['report_path']`) is a shared `AppState` instance passed into both `ScanTab` and `MoveTab`'s constructors, read by Move's "Load path from last scan" button.
+- The `/Volumes/*` chip-picker becomes a row of plain `QPushButton`s (`ScanTab._refresh_drives`), each appending its path to the directories text box on click — same behavior, no chip widget in Qt.
+- Duplicate groups render as a `QTreeWidget` (top-level item per hash group, children are the file paths) instead of NiceGUI's collapsible `ui.expansion` list.
+- File/folder pickers use `QFileDialog` (native, cross-platform) — "Add Folder…" appends to the directories text box rather than requiring the user to type paths by hand.
+- Each worker follows the same `_on_finished`/`_on_failed` → `self._worker.wait()` → `self._worker = None` ordering documented in AAX-CONVERT's `app_qt.py`, to avoid the QThread-destroyed-while-running `SIGABRT`. Keep that ordering if you add another worker here.
+- Logs to `app_qt.log` next to the script.
+- Launched via `TMO-Qt.command` — no port-freeing, no curl-polling, no `open http://...`, since there's no server involved; still runs under Terminal.app's TCC identity like `TMO.command` (see ".app Launcher — Lesson Learned" below — the reasoning applies equally to a compiled Qt `.app`, though none has been built for this UI).
+- Verified end-to-end (not just window construction) by driving `ScanWorker`/`MoveWorker`/`OrganizeWorker` directly against real test files: found a duplicate by hash, moved it, and sorted the remainder into `PHOTO/<date>/`.
+
 ## NiceGUI 3.x Notes (important)
 
 The venv runs NiceGUI 3.x (installed when project moved to `~/code/`). Several things changed from 2.x:
@@ -58,21 +76,22 @@ The venv runs NiceGUI 3.x (installed when project moved to `~/code/`). Several t
 
 ## .app Launcher — Lesson Learned (July 2026)
 
-The `.app` launcher approach fundamentally restricts what a Python app can do. macOS sandboxing strips away filesystem access that the terminal takes for granted — including reading into package-format directories like `.fcpbundle` on external drives, even with Full Disk Access granted. Every `.app` "fix" introduced a new breakage. **The canonical way to run this app is `launch.command` (double-click in Finder) or `python3 app.py` from the terminal — both run under Terminal.app's TCC identity.** The `.app` and `make-app.sh` are kept for reference but should not be trusted or developed further.
+The `.app` launcher approach fundamentally restricts what a Python app can do. macOS sandboxing strips away filesystem access that the terminal takes for granted — including reading into package-format directories like `.fcpbundle` on external drives, even with Full Disk Access granted. Every `.app` "fix" introduced a new breakage. **The canonical way to run this app is `TMO.command` (double-click in Finder) or `python3 app.py` from the terminal — both run under Terminal.app's TCC identity.** The `.app` and `make-app.sh` are kept for reference but should not be trusted or developed further.
 
-`launch.command` frees port 8080 if a previous instance is still running, starts `app.py`, polls until NiceGUI is ready, then opens the browser — the same job the `.app`'s AppleScript wrapper did, minus the TCC problem, since it's a plain script that Finder runs via Terminal.app rather than a separate compiled app bundle. `launch.sh` (older, no port-free/browser-open) is superseded by this but kept for reference.
+`TMO.command` frees port 8080 if a previous instance is still running, starts `app.py`, polls until NiceGUI is ready, then opens the browser — the same job the `.app`'s AppleScript wrapper did, minus the TCC problem, since it's a plain script that Finder runs via Terminal.app rather than a separate compiled app bundle. `launch.sh` (older, no port-free/browser-open) is superseded by this but kept for reference.
 
 ## Current State (June 2026)
 
 ### Working
 - Full CLI (`scan`, `move`, `organize` subcommands)
 - NiceGUI web UI for all three steps
+- Native PySide6 UI (`app_qt.py`) with the same three steps, native file/folder pickers; verified end-to-end against real test files (duplicate detection, move, and date-based organize all confirmed correct)
 - Mounted-drive chip picker refreshes `/Volumes`
 - Hashing worker threads with live progress in the UI
 - Collision-safe file naming (`safe_name`) when dest already contains a file of the same name
 - Unique manifest names built from directory path segments to avoid collisions across similarly-named folders
 - Port reclamation on startup (`_free_port`) so re-launching doesn't fail
-- `launch.command` — recommended launcher, runs under Terminal.app's TCC identity
+- `TMO.command` — recommended launcher, runs under Terminal.app's TCC identity
 - `.app` launcher with baked paths (rebuild with `bash make-app.sh` after any project move) — kept for reference only, not recommended (see "Lesson Learned")
 
 ### Known limitations / future work
@@ -99,10 +118,15 @@ python tru_organizer.py scan /Volumes/DriveA /Volumes/DriveB
 python tru_organizer.py move --from /Volumes/DriveB
 python tru_organizer.py organize /Volumes/DriveA
 
-# Web UI — use launch.command (double-click in Finder, or run directly), not the .app
-./launch.command
+# Web UI — use TMO.command (double-click in Finder, or run directly), not the .app
+./TMO.command
 # or, equivalently:
 python app.py   # opens http://localhost:8080 automatically
+
+# Native UI
+./TMO-Qt.command
+# or, equivalently:
+python app_qt.py
 ```
 
 ## File Outputs
